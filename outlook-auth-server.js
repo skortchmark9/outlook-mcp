@@ -10,6 +10,14 @@ const path = require('path');
 // Load environment variables from .env file
 require('dotenv').config();
 
+// Resolve token path from CLI arg, env var, or default
+function resolveTokenPath() {
+  const cliArg = process.argv.find(a => a.startsWith('--token-path='));
+  if (cliArg) return cliArg.slice('--token-path='.length);
+  if (process.env.OUTLOOK_TOKEN_PATH) return process.env.OUTLOOK_TOKEN_PATH;
+  return path.join(process.env.HOME || process.env.USERPROFILE, '.outlook-mcp-tokens.json');
+}
+
 // Log to console
 console.log('Starting Outlook Authentication Server');
 
@@ -52,7 +60,7 @@ const AUTH_CONFIG = {
     'Calendars.ReadWrite',
     'Contacts.Read'
   ],
-  tokenStorePath: path.join(process.env.HOME || process.env.USERPROFILE, '.outlook-mcp-tokens.json')
+  tokenStorePath: resolveTokenPath()
 };
 
 // Create HTTP server

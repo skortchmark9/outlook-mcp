@@ -13,7 +13,7 @@ class TokenStorage {
     const clientSecret = process.env.MS_CLIENT_SECRET || process.env.OUTLOOK_CLIENT_SECRET;
 
     this.config = {
-      tokenStorePath: path.join(process.env.HOME || process.env.USERPROFILE, '.outlook-mcp-tokens.json'),
+      tokenStorePath: process.env.OUTLOOK_TOKEN_PATH || path.join(process.env.HOME || process.env.USERPROFILE, '.outlook-mcp-tokens.json'),
       clientId,
       clientSecret,
       redirectUri: process.env.MS_REDIRECT_URI || 'http://localhost:3333/auth/callback',
