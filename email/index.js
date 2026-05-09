@@ -5,6 +5,7 @@ const handleListEmails = require('./list');
 const handleSearchEmails = require('./search');
 const handleReadEmail = require('./read');
 const handleSendEmail = require('./send');
+const handleReplyEmail = require('./reply');
 const handleDraftEmail = require('./draft');
 const handleMarkAsRead = require('./mark-as-read');
 const handleDeleteEmail = require('./delete');
@@ -137,6 +138,41 @@ const emailTools = [
     handler: handleSendEmail
   },
   {
+    name: "reply-email",
+    description: "Replies to an existing email, preserving the conversation thread (In-Reply-To, References, conversationId). Uses Microsoft Graph's /reply or /replyAll endpoint.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "ID of the email to reply to"
+        },
+        body: {
+          type: "string",
+          description: "Reply body content (plain text or HTML). Graph will quote the original message below this."
+        },
+        replyAll: {
+          type: "boolean",
+          description: "If true, reply to all recipients (To + CC). Default: false"
+        },
+        to: {
+          type: "string",
+          description: "Override recipients (comma-separated). If omitted, defaults to the original sender."
+        },
+        cc: {
+          type: "string",
+          description: "Override CC recipients (comma-separated)."
+        },
+        isHtml: {
+          type: "boolean",
+          description: "Set to true to send as HTML, false for plain text. Auto-detects if not specified."
+        }
+      },
+      required: ["id", "body"]
+    },
+    handler: handleReplyEmail
+  },
+  {
     name: "draft-email",
     description: "Creates and saves an email draft in Outlook",
     inputSchema: {
@@ -218,6 +254,7 @@ module.exports = {
   handleSearchEmails,
   handleReadEmail,
   handleSendEmail,
+  handleReplyEmail,
   handleDraftEmail,
   handleMarkAsRead,
   handleDeleteEmail
