@@ -41,7 +41,7 @@ async function handleDraftEmail(args) {
     const messageObject = {
       subject,
       body: {
-        contentType: typeof body === 'string' && body.toLowerCase().includes('<html') ? 'html' : 'text',
+        contentType: typeof body === 'string' && /<\/?(html|body|p|div|br|ul|ol|table|h[1-6])[\s/>]/i.test(body) ? 'html' : 'text',
         content: body
       },
       toRecipients: toRecipients.length > 0 ? toRecipients : undefined,
