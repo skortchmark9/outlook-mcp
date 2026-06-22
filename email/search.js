@@ -72,7 +72,15 @@ async function handleSearchEmails(args) {
 async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms, maxCount) {
   // Track search strategies attempted
   const searchAttempts = [];
-  
+
+  // Did the caller actually ask to filter? If so, a zero-match result must be
+  // reported as zero — NOT masked by dumping recent emails (which get labelled
+  // "matching your search criteria" and read as false positives). The recent-
+  // emails fallback is only honest when there were no search terms at all.
+  const hasSearchTerms = !!(
+    searchTerms.query || searchTerms.from || searchTerms.to || searchTerms.subject
+  );
+
   // 1. Try combined search (most specific)
   try {
     const params = buildSearchParams(searchTerms, filterTerms, Math.min(50, maxCount));
@@ -155,10 +163,28 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
     }
   }
   
-  // 4. Final fallback: just get recent emails with pagination
-  console.error("All search strategies failed, falling back to recent emails");
+  // 4a. Caller supplied search terms but nothing matched. Report an honest zero
+  // instead of falling back to unrelated recent emails (which would be presented
+  // as matches). This is the fix for the silent false-positive fallback.
+  if (hasSearchTerms) {
+    console.error("Search terms provided but no matches found; returning empty (no recent-emails fallback)");
+    return {
+      value: [],
+      '@odata.count': 0,
+      _searchInfo: {
+        attemptsCount: searchAttempts.length,
+        strategies: searchAttempts,
+        originalTerms: searchTerms,
+        filterTerms: filterTerms,
+        noFallback: true,
+      },
+    };
+  }
+
+  // 4b. Final fallback (no search terms): just get recent emails with pagination
+  console.error("No search terms, returning recent emails");
   searchAttempts.push("recent-emails");
-  
+
   const basicParams = {
     $top: Math.min(50, maxCount),
     $select: config.EMAIL_SELECT_FIELDS,
