@@ -111,23 +111,14 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
           $top: Math.min(50, maxCount),
           $select: config.EMAIL_SELECT_FIELDS
         };
-        
-        // Build KQL terms for search
-        const kqlParts = [];
-        
-        // Add the search term in the appropriate KQL syntax
-        if (term === 'query') {
-          // General query doesn't need a prefix
-          kqlParts.push(searchTerms[term]);
-        } else {
-          // Specific field searches use field:value syntax
-          kqlParts.push(`${term}:${searchTerms[term]}`);
-        }
-        
+
+        // Build KQL terms for search. 'query' is free text (no field prefix).
+        const kqlParts = [buildKqlTerm(term === 'query' ? null : term, searchTerms[term])];
+
         // Add boolean filters as KQL (can't use $filter with $search)
         addBooleanFiltersAsKQL(kqlParts, filterTerms);
-        
-        simplifiedParams.$search = `"${kqlParts.join(' ')}"`;
+
+        simplifiedParams.$search = `"${kqlParts.join(' AND ')}"`;
         
         const response = await callGraphAPIPaginated(accessToken, 'GET', endpoint, simplifiedParams, maxCount);
         if (response.value && response.value.length > 0) {
@@ -206,6 +197,27 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
 }
 
 /**
+ * Build a single KQL term for use inside a Graph $search expression.
+ *
+ * Two hard-won rules, both verified against the live Graph API:
+ *  1. Never wrap a value in double quotes. `subject:"foo bar"` inside the
+ *     already-quoted $search string produces nested quotes and Graph rejects it
+ *     with `400 Syntax error: character '"' is not valid`.
+ *  2. Multi-word values must be parenthesized: `subject:(foo bar)`. Without the
+ *     parens, `subject:foo bar` scopes only "foo" to the subject and lets "bar"
+ *     match ANY field as free text, so unrelated emails come back as "matches".
+ *
+ * @param {string|null} field - KQL property (subject/from/to) or null for free text
+ * @param {string} value - user-supplied value
+ * @returns {string} - a KQL term, e.g. `subject:(RateMate Analysis)`
+ */
+function buildKqlTerm(field, value) {
+  const v = String(value).trim();
+  const scoped = /\s/.test(v) ? `(${v})` : v;
+  return field ? `${field}:${scoped}` : scoped;
+}
+
+/**
  * Build search parameters from search terms and filter terms
  * @param {object} searchTerms - Search terms (query, from, to, subject)
  * @param {object} filterTerms - Filter terms (hasAttachments, unreadOnly)
@@ -217,33 +229,23 @@ function buildSearchParams(searchTerms, filterTerms, count) {
     $top: count,
     $select: config.EMAIL_SELECT_FIELDS
   };
-  
+
   // Handle search terms
   const kqlTerms = [];
-  
-  if (searchTerms.query) {
-    // General query doesn't need a prefix
-    kqlTerms.push(searchTerms.query);
-  }
-  
-  if (searchTerms.subject) {
-    kqlTerms.push(`subject:\"${searchTerms.subject}\"`);
-  }
 
-  if (searchTerms.from) {
-    kqlTerms.push(`from:\"${searchTerms.from}\"`);
-  }
+  if (searchTerms.query)   kqlTerms.push(buildKqlTerm(null, searchTerms.query));
+  if (searchTerms.subject) kqlTerms.push(buildKqlTerm('subject', searchTerms.subject));
+  if (searchTerms.from)    kqlTerms.push(buildKqlTerm('from', searchTerms.from));
+  if (searchTerms.to)      kqlTerms.push(buildKqlTerm('to', searchTerms.to));
 
-  if (searchTerms.to) {
-    kqlTerms.push(`to:\"${searchTerms.to}\"`);
-  }
-  
   // Add $search if we have any search terms
   if (kqlTerms.length > 0) {
     // Graph API does not support $orderby or $filter with $search
     // Move boolean filters into KQL syntax instead
     addBooleanFiltersAsKQL(kqlTerms, filterTerms);
-    params.$search = `"${kqlTerms.join(' ')}"`;
+    // The whole KQL expression is wrapped in ONE pair of double quotes and the
+    // terms are AND-joined. Individual terms must not carry their own quotes.
+    params.$search = `"${kqlTerms.join(' AND ')}"`;
   } else {
     // No search terms — safe to use $orderby and $filter
     params.$orderby = 'receivedDateTime desc';

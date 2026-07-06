@@ -10,16 +10,39 @@ const { callGraphAPI } = require('../utils/graph-api');
 const folderCache = {};
 
 /**
- * Well-known folder names and their endpoints
+ * Well-known folder names and their endpoints.
+ *
+ * Keys are matched after normalizing the caller's folder name (lowercased,
+ * spaces/underscores stripped) so that "Sent Items", "sent items", "sentItems",
+ * "sentitems" and "sent" all resolve to the same Graph well-known name. Without
+ * these aliases, a folder like "sentitems" is not found by displayName and the
+ * search SILENTLY falls back to the inbox — returning wrong-folder results that
+ * look like a broken search.
  */
 const WELL_KNOWN_FOLDERS = {
   'inbox': 'me/mailFolders/inbox/messages',
   'drafts': 'me/mailFolders/drafts/messages',
+  'draft': 'me/mailFolders/drafts/messages',
   'sent': 'me/mailFolders/sentItems/messages',
+  'sentitems': 'me/mailFolders/sentItems/messages',
   'deleted': 'me/mailFolders/deletedItems/messages',
+  'deleteditems': 'me/mailFolders/deletedItems/messages',
+  'trash': 'me/mailFolders/deletedItems/messages',
   'junk': 'me/mailFolders/junkemail/messages',
+  'junkemail': 'me/mailFolders/junkemail/messages',
+  'spam': 'me/mailFolders/junkemail/messages',
   'archive': 'me/mailFolders/archive/messages'
 };
+
+/**
+ * Normalize a folder name for well-known lookup: lowercase and strip spaces,
+ * underscores, and hyphens. "Sent Items" -> "sentitems".
+ * @param {string} name
+ * @returns {string}
+ */
+function normalizeFolderName(name) {
+  return String(name).toLowerCase().replace(/[\s_-]+/g, '');
+}
 
 /**
  * Resolve a folder name to its endpoint path
@@ -34,11 +57,11 @@ async function resolveFolderPath(accessToken, folderName) {
     return WELL_KNOWN_FOLDERS['inbox'];
   }
 
-  // Check if it's a well-known folder (case-insensitive)
-  const lowerFolderName = folderName.toLowerCase();
-  if (WELL_KNOWN_FOLDERS[lowerFolderName]) {
+  // Check if it's a well-known folder (normalized: case/space/underscore-insensitive)
+  const normalized = normalizeFolderName(folderName);
+  if (WELL_KNOWN_FOLDERS[normalized]) {
     console.error(`Using well-known folder path for "${folderName}"`);
-    return WELL_KNOWN_FOLDERS[lowerFolderName];
+    return WELL_KNOWN_FOLDERS[normalized];
   }
 
   try {
