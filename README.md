@@ -4,6 +4,11 @@
 
 A comprehensive MCP (Model Context Protocol) server that connects Claude with Microsoft 365 services through the Microsoft Graph API and Power Automate API.
 
+> **This is a fork of [ryaker/outlook-mcp](https://github.com/ryaker/outlook-mcp).** It adds
+> multi-mailbox support, a threaded `reply-email` tool, and several `search-emails` fixes.
+> If you're setting this up for the first time, read **[ONBOARDING.md](./ONBOARDING.md)**
+> alongside this README — it covers what differs here and the setup gotchas.
+
 ## Supported Services
 
 - **Outlook** - Email, calendar, folders, and rules
