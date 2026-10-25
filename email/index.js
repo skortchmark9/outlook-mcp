@@ -9,6 +9,7 @@ const handleReplyEmail = require('./reply');
 const handleDraftEmail = require('./draft');
 const handleMarkAsRead = require('./mark-as-read');
 const handleDeleteEmail = require('./delete');
+const handleDownloadAttachments = require('./download-attachments');
 
 // Email tool definitions
 const emailTools = [
@@ -92,6 +93,29 @@ const emailTools = [
       required: ["id"]
     },
     handler: handleReadEmail
+  },
+  {
+    name: "download-attachments",
+    description: "Downloads an email's file attachments to a local directory and returns the saved paths. Inline attachments (signature images) are skipped unless includeInline is true.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "ID of the email whose attachments to download"
+        },
+        outputDir: {
+          type: "string",
+          description: "Local directory to save attachments into (created if missing; ~ is expanded)"
+        },
+        includeInline: {
+          type: "boolean",
+          description: "Also save inline attachments such as signature images. Default: false"
+        }
+      },
+      required: ["id", "outputDir"]
+    },
+    handler: handleDownloadAttachments
   },
   {
     name: "send-email",
@@ -257,5 +281,6 @@ module.exports = {
   handleReplyEmail,
   handleDraftEmail,
   handleMarkAsRead,
-  handleDeleteEmail
+  handleDeleteEmail,
+  handleDownloadAttachments
 };
